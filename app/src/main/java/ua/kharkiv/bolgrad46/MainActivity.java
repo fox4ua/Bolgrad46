@@ -3,708 +3,190 @@ package ua.kharkiv.bolgrad46;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.LinearGradient;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
-import android.graphics.Shader;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.Window;
+import android.graphics.*;
+import android.os.*;
+import android.util.Base64;
+import android.view.*;
 import android.widget.Toast;
+import java.io.*;
 
 public class MainActivity extends Activity {
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(6, 23, 43));
-        window.setNavigationBarColor(Color.rgb(4, 18, 36));
-
-        setContentView(new HouseView(this));
+    @Override public void onCreate(Bundle b) {
+        super.onCreate(b);
+        getWindow().setStatusBarColor(Color.rgb(5,19,37));
+        getWindow().setNavigationBarColor(Color.rgb(4,16,31));
+        if (Build.VERSION.SDK_INT >= 29) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+        setContentView(new HomeView(this));
     }
 
-    private static final class HouseView extends View {
-        private static final int BG = Color.rgb(6, 23, 43);
-        private static final int BG_BOTTOM = Color.rgb(4, 16, 31);
-        private static final int SURFACE = Color.rgb(9, 31, 55);
-        private static final int SURFACE_2 = Color.rgb(12, 40, 69);
-        private static final int BORDER = Color.rgb(28, 67, 105);
-        private static final int BLUE = Color.rgb(37, 133, 255);
-        private static final int BLUE_LIGHT = Color.rgb(83, 164, 255);
-        private static final int TEXT = Color.rgb(246, 249, 255);
-        private static final int MUTED = Color.rgb(139, 164, 197);
-        private static final int GREEN = Color.rgb(54, 211, 128);
-        private static final int WARM = Color.rgb(255, 194, 99);
+    static class HomeView extends View {
+        static final float W=750f;
+        static final int BG=Color.rgb(5,19,37), BG2=Color.rgb(4,16,31),
+                SUR=Color.rgb(8,28,50), BORDER=Color.rgb(25,60,94),
+                BLUE=Color.rgb(37,133,255), BLUEL=Color.rgb(79,160,255),
+                TXT=Color.rgb(246,249,255), MUT=Color.rgb(139,164,197),
+                GREEN=Color.rgb(54,211,128);
+        final Paint p=new Paint(3), s=new Paint(3);
+        final Handler h=new Handler(Looper.getMainLooper());
+        Bitmap hero;
+        int topInset,bottomInset;
+        float sc=1, vh=1500, drag=0;
+        boolean dragging, opened;
+        ValueAnimator anim;
 
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Handler handler = new Handler(Looper.getMainLooper());
-
-        private float scale = 1f;
-        private float virtualHeight = 2200f;
-        private int selectedTab = 0;
-        private float swipeOffset = 0f;
-        private boolean dragging = false;
-        private boolean opened = false;
-        private ValueAnimator swipeAnimator;
-
-        HouseView(Context context) {
-            super(context);
-            paint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
-            stroke.setStyle(Paint.Style.STROKE);
-            stroke.setStrokeCap(Paint.Cap.ROUND);
-            stroke.setStrokeJoin(Paint.Join.ROUND);
-            setBackgroundColor(BG);
+        HomeView(Context c) {
+            super(c);
+            s.setStyle(Paint.Style.STROKE); s.setStrokeCap(Paint.Cap.ROUND); s.setStrokeJoin(Paint.Join.ROUND);
+            hero=loadHero();
+            setOnApplyWindowInsetsListener((v,i)->{
+                topInset=i.getSystemWindowInsetTop();
+                bottomInset=i.getSystemWindowInsetBottom();
+                invalidate(); return i;
+            });
+            requestApplyInsets();
         }
 
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            scale = getWidth() / 1080f;
-            virtualHeight = getHeight() / scale;
-
-            canvas.save();
-            canvas.scale(scale, scale);
-
-            paint.setShader(new LinearGradient(0, 0, 0, virtualHeight, BG, BG_BOTTOM, Shader.TileMode.CLAMP));
-            canvas.drawRect(0, 0, 1080, virtualHeight, paint);
-            paint.setShader(null);
-
-            if (selectedTab == 0) {
-                drawHome(canvas);
-            } else if (selectedTab == 1) {
-                drawEventsScreen(canvas);
-            } else if (selectedTab == 2) {
-                drawRequestsScreen(canvas);
-            } else {
-                drawProfileScreen(canvas);
-            }
-
-            drawBottomNavigation(canvas);
-            canvas.restore();
+        Bitmap loadHero() {
+            try {
+                InputStream in=getResources().openRawResource(R.raw.house46_hero_base64);
+                ByteArrayOutputStream o=new ByteArrayOutputStream();
+                byte[] b=new byte[4096]; int n;
+                while((n=in.read(b))!=-1)o.write(b,0,n);
+                in.close();
+                byte[] d=Base64.decode(o.toByteArray(),Base64.DEFAULT);
+                return BitmapFactory.decodeByteArray(d,0,d.length);
+            } catch(Exception e){ return null; }
         }
 
-        private void drawHome(Canvas c) {
-            drawHeader(c, "Мой дом", "Болградская, 46");
-            drawHero(c);
-            drawSwipe(c);
-            drawSystemCard(c);
-            drawRecentEvents(c);
-        }
-
-        private void drawHeader(Canvas c, String title, String subtitle) {
-            text(c, title, 54, 86, 48, TEXT, true);
-            drawChevronDown(c, 340, 67, MUTED);
-            text(c, subtitle, 54, 133, 25, MUTED, false);
-
-            card(c, 906, 38, 1026, 158, 28, SURFACE, BORDER);
-            drawBell(c, 966, 94);
-            circle(c, 1001, 55, 9, BLUE);
-        }
-
-        private void drawHero(Canvas c) {
-            final float left = 44;
-            final float top = 180;
-            final float right = 1036;
-            final float bottom = 612;
-            final float radius = 34;
-
-            Path clip = new Path();
-            clip.addRoundRect(new RectF(left, top, right, bottom), radius, radius, Path.Direction.CW);
-            c.save();
-            c.clipPath(clip);
-
-            paint.setShader(new LinearGradient(left, top, right, bottom,
-                    Color.rgb(15, 52, 92), Color.rgb(5, 21, 39), Shader.TileMode.CLAMP));
-            c.drawRect(left, top, right, bottom, paint);
-            paint.setShader(null);
-
-            // Soft, deliberately illustrated background instead of a photo.
-            circle(c, 92, 320, 125, Color.argb(150, 10, 42, 57));
-            circle(c, 1010, 350, 160, Color.argb(150, 8, 50, 52));
-            circle(c, 160, 520, 115, Color.argb(210, 9, 48, 49));
-            circle(c, 945, 520, 130, Color.argb(215, 8, 45, 47));
-
-            drawIllustratedHouse(c);
-            drawWalkway(c);
-            drawTrees(c);
-
-            // Dark vignette at edges.
-            paint.setShader(new LinearGradient(left, top, left, bottom,
-                    Color.argb(0, 2, 10, 22), Color.argb(95, 2, 10, 22), Shader.TileMode.CLAMP));
-            c.drawRect(left, top, right, bottom, paint);
-            paint.setShader(null);
-
+        @Override protected void onDraw(Canvas c) {
+            sc=getWidth()/W;
+            vh=Math.max(1,getHeight()-topInset-bottomInset)/sc;
+            c.save(); c.translate(0,topInset); c.scale(sc,sc);
+            p.setShader(new LinearGradient(0,0,0,vh,BG,BG2,Shader.TileMode.CLAMP));
+            c.drawRect(0,0,W,vh,p); p.setShader(null);
+            header(c); hero(c); swipe(c); status(c); events(c); nav(c);
             c.restore();
-            roundStroke(c, left, top, right, bottom, radius, BORDER, 2);
-
-            roundFill(c, 68, 202, 230, 254, 26, Color.argb(220, 5, 22, 39));
-            circle(c, 91, 228, 8, GREEN);
-            text(c, "Онлайн", 111, 238, 18, TEXT, true);
         }
 
-        private void drawIllustratedHouse(Canvas c) {
-            // The facade follows the real entrance-side character of Bolgradskaya 46:
-            // gray panel sections, green seams, left balcony stack and narrow stairwell windows.
-            Path building = new Path();
-            building.moveTo(190, 236);
-            building.lineTo(970, 204);
-            building.lineTo(1018, 565);
-            building.lineTo(176, 565);
-            building.close();
-
-            paint.setColor(Color.rgb(113, 124, 133));
-            c.drawPath(building, paint);
-
-            // Slight warm/cool panel patches keep it illustrative.
-            paint.setColor(Color.argb(55, 213, 207, 184));
-            c.drawRect(350, 233, 720, 560, paint);
-            paint.setColor(Color.argb(45, 67, 100, 123));
-            c.drawRect(720, 220, 1005, 560, paint);
-
-            // Panel seams.
-            stroke.setColor(Color.rgb(63, 92, 78));
-            stroke.setStrokeWidth(3);
-            for (int i = 1; i < 9; i++) {
-                float y = 238 + i * 35.5f;
-                c.drawLine(188, y, 1012, y - 4, stroke);
-            }
-            for (int i = 0; i < 8; i++) {
-                float x = 326 + i * 87f;
-                c.drawLine(x, 228, x + 8, 562, stroke);
-            }
-
-            // Left stacked balconies, distinctive for the real house.
-            for (int floor = 0; floor < 8; floor++) {
-                float y = 251 + floor * 38.5f;
-                float x = 206 + floor * 0.8f;
-                paint.setColor(Color.rgb(86, 96, 101));
-                c.drawRect(x, y, x + 132, y + 28, paint);
-                stroke.setColor(Color.rgb(42, 55, 64));
-                stroke.setStrokeWidth(2);
-                c.drawRect(x, y, x + 132, y + 28, stroke);
-                for (int k = 1; k < 4; k++) {
-                    c.drawLine(x + k * 32, y + 2, x + k * 32, y + 27, stroke);
-                }
-                // Decorative panel texture.
-                paint.setColor(Color.argb(75, 218, 208, 175));
-                for (int p = 0; p < 6; p++) {
-                    float px = x + 8 + p * 20;
-                    c.drawCircle(px, y + 22, 2.5f, paint);
-                }
-            }
-
-            // Regular apartment windows.
-            for (int floor = 0; floor < 8; floor++) {
-                float y = 248 + floor * 38.6f;
-                for (int col = 0; col < 6; col++) {
-                    float x = 375 + col * 98f;
-                    if (col == 2) {
-                        continue;
-                    }
-                    boolean lit = ((floor * 7 + col * 5) % 6 == 0) || (floor == 1 && col == 4);
-                    drawWindow(c, x, y, 44, 25, lit);
-                }
-            }
-
-            // Narrow stairwell windows in the central strip.
-            for (int floor = 0; floor < 9; floor++) {
-                float y = 226 + floor * 36.8f;
-                boolean lit = floor == 2 || floor == 6;
-                drawWindow(c, 568, y, 62, 19, lit);
-            }
-
-            // Entrance canopy and the recognizable blue utility/entrance zone.
-            paint.setColor(Color.rgb(74, 78, 78));
-            c.drawRect(444, 510, 742, 526, paint);
-            paint.setColor(Color.rgb(22, 43, 57));
-            c.drawRect(474, 526, 598, 570, paint);
-            paint.setColor(Color.rgb(17, 93, 135));
-            c.drawRect(598, 526, 716, 570, paint);
-            stroke.setColor(Color.rgb(16, 39, 50));
-            stroke.setStrokeWidth(3);
-            c.drawRect(474, 526, 598, 570, stroke);
-            c.drawRect(598, 526, 716, 570, stroke);
-
-            // Door details and small mural motifs inspired by the entrance photo.
-            paint.setColor(Color.rgb(56, 64, 67));
-            c.drawRect(500, 535, 566, 570, paint);
-            circle(c, 556, 553, 3, Color.rgb(194, 201, 205));
-            paint.setColor(Color.rgb(244, 180, 58));
-            c.drawCircle(625, 546, 10, paint);
-            c.drawCircle(682, 548, 10, paint);
-            paint.setColor(Color.rgb(31, 105, 74));
-            c.drawRect(620, 554, 626, 569, paint);
-            c.drawRect(679, 556, 685, 569, paint);
-
-            // Steps painted blue/white like the reference entrance.
-            paint.setColor(Color.rgb(88, 121, 142));
-            c.drawRect(458, 570, 716, 578, paint);
-            paint.setColor(Color.rgb(53, 139, 188));
-            c.drawRect(472, 578, 700, 584, paint);
-            paint.setColor(Color.rgb(218, 224, 221));
-            c.drawRect(486, 584, 686, 590, paint);
+        void header(Canvas c){
+            txt(c,"Мой дом",34,78,45,TXT,true);
+            chevronDown(c,294,60,MUT);
+            txt(c,"Болградская, 46",34,119,23,MUT,false);
+            card(c,649,31,716,101,20,SUR,BORDER);
+            bell(c,683,62); circle(c,704,42,7,BLUE);
         }
 
-        private void drawWindow(Canvas c, float x, float y, float w, float h, boolean lit) {
-            paint.setColor(Color.rgb(43, 56, 65));
-            c.drawRect(x, y, x + w, y + h, paint);
-            paint.setColor(lit ? WARM : Color.rgb(104, 132, 148));
-            c.drawRect(x + 4, y + 4, x + w - 4, y + h - 4, paint);
-            stroke.setColor(Color.rgb(59, 72, 78));
-            stroke.setStrokeWidth(2);
-            c.drawLine(x + w / 2, y + 3, x + w / 2, y + h - 3, stroke);
+        void hero(Canvas c){
+            float l=31,t=148,r=719,b=544,rad=25;
+            Path path=new Path(); path.addRoundRect(new RectF(l,t,r,b),rad,rad,Path.Direction.CW);
+            c.save(); c.clipPath(path);
+            if(hero!=null)c.drawBitmap(hero,new Rect(0,0,hero.getWidth(),hero.getHeight()),new RectF(l,t,r,b),p);
+            else {p.setColor(Color.rgb(11,37,64)); c.drawRect(l,t,r,b,p);}
+            c.restore(); rstroke(c,l,t,r,b,rad,BORDER,1.5f);
         }
 
-        private void drawWalkway(Canvas c) {
-            paint.setColor(Color.rgb(21, 33, 41));
-            Path p = new Path();
-            p.moveTo(390, 590);
-            p.lineTo(770, 590);
-            p.lineTo(930, 612);
-            p.lineTo(175, 612);
-            p.close();
-            c.drawPath(p, paint);
-
-            stroke.setColor(Color.argb(100, 79, 109, 127));
-            stroke.setStrokeWidth(2);
-            for (int i = 0; i < 6; i++) {
-                float yy = 593 + i * 4;
-                c.drawLine(190, yy, 920, yy, stroke);
-            }
-        }
-
-        private void drawTrees(Canvas c) {
-            // Simplified foliage keeps the hero visually soft and painted.
-            paint.setColor(Color.rgb(18, 58, 48));
-            c.drawRect(145, 430, 152, 575, paint);
-            c.drawRect(840, 415, 848, 575, paint);
-            int leaf = Color.rgb(20, 73, 58);
-            circle(c, 145, 414, 48, leaf);
-            circle(c, 115, 450, 58, leaf);
-            circle(c, 175, 460, 56, Color.rgb(27, 81, 61));
-            circle(c, 850, 404, 56, Color.rgb(24, 79, 60));
-            circle(c, 895, 447, 64, leaf);
-            circle(c, 818, 460, 54, Color.rgb(31, 88, 64));
-
-            // One curved street light.
-            stroke.setColor(Color.rgb(95, 109, 117));
-            stroke.setStrokeWidth(4);
-            Path lamp = new Path();
-            lamp.moveTo(315, 565);
-            lamp.lineTo(315, 430);
-            lamp.quadTo(318, 399, 350, 399);
-            c.drawPath(lamp, stroke);
-            circle(c, 354, 400, 7, WARM);
-            circle(c, 354, 400, 18, Color.argb(35, 255, 196, 103));
-        }
-
-        private void drawSwipe(Canvas c) {
-            final float left = 44;
-            final float top = 642;
-            final float right = 1036;
-            final float bottom = 846;
-            card(c, left, top, right, bottom, 32, SURFACE, Color.rgb(31, 95, 156));
-
-            roundStroke(c, 68, 668, 1012, 820, 76, Color.rgb(27, 101, 181), 2);
-
-            float centerX = 154 + swipeOffset;
-            float centerY = 744;
-
-            // Blue glow rings.
-            circle(c, centerX, centerY, 82, Color.rgb(16, 56, 101));
-            roundStroke(c, centerX - 82, centerY - 82, centerX + 82, centerY + 82, 82, BLUE_LIGHT, 4);
-            drawDoorIcon(c, centerX, centerY, Color.WHITE);
-
-            if (!opened) {
-                drawArrow(c, 330, 744, Color.rgb(25, 91, 160));
-                drawArrow(c, 360, 744, Color.rgb(30, 110, 198));
-                drawArrow(c, 390, 744, BLUE);
-                text(c, "Свайп, чтобы открыть дверь", 445, 735, 25, TEXT, true);
-                text(c, "Потяните вправо", 445, 778, 20, MUTED, false);
+        void swipe(Canvas c){
+            card(c,31,564,719,758,28,SUR,Color.rgb(25,84,142));
+            rstroke(c,53,584,697,738,76,Color.rgb(25,94,165),1.6f);
+            float x=125+drag,y=661;
+            circle(c,x,y,73,Color.rgb(12,49,91));
+            rstroke(c,x-73,y-73,x+73,y+73,73,BLUEL,2.5f);
+            door(c,x,y,Color.WHITE);
+            if(!opened){
+                arrow(c,246,y,Color.rgb(26,84,147)); arrow(c,272,y,Color.rgb(29,104,184)); arrow(c,298,y,BLUE);
+                txt(c,"Свайп, чтобы открыть дверь",347,650,22,TXT,true);
+                txt(c,"Потяните вправо",347,691,18,MUT,false);
             } else {
-                text(c, "Дверь открыта", 445, 735, 27, GREEN, true);
-                text(c, "Команда выполнена", 445, 778, 20, MUTED, false);
+                txt(c,"Дверь открыта",347,650,23,GREEN,true);
+                txt(c,"Команда выполнена",347,691,18,MUT,false);
             }
         }
 
-        private void drawSystemCard(Canvas c) {
-            card(c, 44, 874, 1036, 1028, 30, SURFACE, BORDER);
-            drawShield(c, 123, 950);
-            text(c, "Система работает", 190, 948, 25, TEXT, true);
-            text(c, "Все сервисы активны", 190, 985, 19, MUTED, false);
-
-            stroke.setColor(Color.rgb(30, 61, 91));
-            stroke.setStrokeWidth(2);
-            c.drawLine(610, 900, 610, 1001, stroke);
-            c.drawLine(825, 900, 825, 1001, stroke);
-
-            drawBuildingIcon(c, 706, 934, MUTED);
-            textCentered(c, "9 этажей", 706, 995, 17, MUTED, false);
-            drawSmallDoor(c, 927, 934, MUTED);
-            textCentered(c, "3 подъезда", 927, 995, 17, MUTED, false);
+        void status(Canvas c){
+            float t=778;
+            card(c,31,t,719,t+122,24,SUR,BORDER);
+            shield(c,81,t+61);
+            txt(c,"Система работает",135,t+51,23,TXT,true);
+            txt(c,"Все сервисы активны",135,t+82,17,MUT,false);
+            line(c,433,t+25,433,t+97,Color.rgb(27,58,86),1);
+            line(c,575,t+25,575,t+97,Color.rgb(27,58,86),1);
+            building(c,504,t+49,MUT); center(c,"9 этажей",504,t+91,16,MUT,false);
+            smallDoor(c,645,t+49,MUT); center(c,"3 подъезда",645,t+91,16,MUT,false);
         }
 
-        private void drawRecentEvents(Canvas c) {
-            text(c, "Последние события", 48, 1092, 28, TEXT, true);
-            text(c, "Все события", 848, 1091, 18, BLUE, false);
-            drawChevronRight(c, 1008, 1084, BLUE);
-
-            card(c, 44, 1120, 1036, 1644, 30, SURFACE, BORDER);
-            drawEventRow(c, 1140, 1, "Дверь открыта", "Сегодня, 08:37", BLUE);
-            drawEventRow(c, 1300, 2, "Вход по коду", "Сегодня, 08:31", GREEN);
-            drawEventRow(c, 1460, 3, "Плановое обслуживание", "Инженерная служба • Вчера, 16:42", BLUE);
+        void events(Canvas c){
+            txt(c,"Последние события",31,946,26,TXT,true);
+            txt(c,"Все события",600,946,17,BLUE,false); right(c,707,939,BLUE);
+            float t=971; card(c,31,t,719,1296,24,SUR,BORDER);
+            row(c,t,0,"Дверь открыта","Сегодня, 08:37",BLUE);
+            row(c,t,1,"Вход по коду","Сегодня, 08:31",GREEN);
+            row(c,t,2,"Плановое обслуживание","Инженерная служба • Вчера, 16:42",BLUE);
         }
 
-        private void drawEventRow(Canvas c, float y, int type, String title, String subtitle, int accent) {
-            roundFill(c, 74, y + 18, 150, y + 94, 20, Color.argb(55, Color.red(accent), Color.green(accent), Color.blue(accent)));
-            roundStroke(c, 74, y + 18, 150, y + 94, 20, Color.argb(130, Color.red(accent), Color.green(accent), Color.blue(accent)), 2);
+        void row(Canvas c,float t,int i,String a,String b,int col){
+            float y=t+i*106;
+            if(i>0)line(c,109,y,695,y,Color.rgb(23,53,79),1);
+            rfill(c,48,y+21,93,y+66,12,Color.argb(48,Color.red(col),Color.green(col),Color.blue(col)));
+            rstroke(c,48,y+21,93,y+66,12,Color.argb(100,Color.red(col),Color.green(col),Color.blue(col)),1);
+            if(i==0)smallDoor(c,70,y+44,col); else if(i==1)person(c,70,y+45,col); else gear(c,70,y+45,col);
+            txt(c,a,112,y+50,20,TXT,true); txt(c,b,112,y+78,i==2?14:16,MUT,false); right(c,690,y+48,MUT);
+        }
 
-            if (type == 1) {
-                drawSmallDoor(c, 112, y + 56, accent);
-            } else if (type == 2) {
-                drawPerson(c, 112, y + 56, accent);
-            } else {
-                drawGear(c, 112, y + 56, accent);
+        void nav(Canvas c){
+            float t=Math.max(1320,vh-108);
+            card(c,16,t,734,t+98,22,Color.rgb(5,24,43),Color.rgb(20,51,78));
+            float[] x={95,280,468,655}; String[] q={"Главная","События","Заявки","Профиль"};
+            home(c,x[0],t+36,BLUE); clock(c,x[1],t+36,MUT); clipboard(c,x[2],t+36,MUT); person(c,x[3],t+36,MUT);
+            for(int i=0;i<4;i++)center(c,q[i],x[i],t+76,15,i==0?BLUE:MUT,i==0);
+        }
+
+        @Override public boolean onTouchEvent(MotionEvent e){
+            float x=e.getX()/sc, y=(e.getY()-topInset)/sc;
+            float dx=x-(125+drag),dy=y-661;
+            if(e.getAction()==MotionEvent.ACTION_DOWN && dx*dx+dy*dy<92*92){dragging=true;return true;}
+            if(e.getAction()==MotionEvent.ACTION_MOVE&&dragging){drag=Math.max(0,Math.min(500,x-125));invalidate();return true;}
+            if((e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)&&dragging){
+                dragging=false; animate(drag>=330?500:0,drag>=330); return true;
             }
-
-            text(c, title, 184, y + 52, 22, TEXT, true);
-            text(c, subtitle, 184, y + 87, 18, MUTED, false);
-            drawChevronRight(c, 998, y + 55, MUTED);
-
-            if (y < 1450) {
-                stroke.setColor(Color.rgb(25, 55, 84));
-                stroke.setStrokeWidth(2);
-                c.drawLine(184, y + 128, 1008, y + 128, stroke);
-            }
-        }
-
-        private void drawEventsScreen(Canvas c) {
-            drawSimpleTitle(c, "События", "Журнал доступа и уведомлений");
-            card(c, 44, 205, 1036, 860, 30, SURFACE, BORDER);
-            drawEventRow(c, 230, 1, "Дверь открыта", "Сегодня, 08:37", BLUE);
-            drawEventRow(c, 390, 2, "Вход по коду", "Сегодня, 08:31", GREEN);
-            drawEventRow(c, 550, 3, "Плановое обслуживание", "Вчера, 16:42", BLUE);
-            drawEventRow(c, 710, 1, "Дверь закрыта", "Вчера, 15:18", BLUE);
-        }
-
-        private void drawRequestsScreen(Canvas c) {
-            drawSimpleTitle(c, "Заявки", "Обращения по дому");
-            roundFill(c, 44, 205, 1036, 290, 28, Color.rgb(19, 71, 127));
-            text(c, "+   Оставить заявку", 90, 260, 23, TEXT, true);
-
-            text(c, "Мои заявки", 48, 355, 25, TEXT, true);
-            drawRequest(c, 400, "Не работает освещение", "Подъезд • 2 этаж", "В работе", Color.rgb(233, 166, 62));
-            drawRequest(c, 550, "Протекает кран в тамбуре", "Подъезд", "Новая", BLUE);
-            drawRequest(c, 700, "Не закрывается дверь", "Вход", "Завершена", GREEN);
-        }
-
-        private void drawRequest(Canvas c, float y, String title, String subtitle, String status, int statusColor) {
-            card(c, 44, y, 1036, y + 128, 26, SURFACE, BORDER);
-            text(c, title, 82, y + 48, 21, TEXT, true);
-            text(c, subtitle, 82, y + 83, 17, MUTED, false);
-            roundFill(c, 820, y + 40, 988, y + 86, 20,
-                    Color.argb(55, Color.red(statusColor), Color.green(statusColor), Color.blue(statusColor)));
-            textCentered(c, status, 904, y + 70, 15, statusColor, true);
-        }
-
-        private void drawProfileScreen(Canvas c) {
-            drawSimpleTitle(c, "Профиль", "Настройки доступа");
-            circle(c, 150, 290, 66, Color.rgb(26, 71, 118));
-            drawPerson(c, 150, 290, Color.WHITE);
-            text(c, "Житель дома", 245, 278, 28, TEXT, true);
-            text(c, "Болградская, 46", 245, 317, 19, MUTED, false);
-
-            drawProfileLine(c, 420, "Уведомления");
-            drawProfileLine(c, 535, "Безопасность");
-            drawProfileLine(c, 650, "О приложении");
-        }
-
-        private void drawSimpleTitle(Canvas c, String title, String subtitle) {
-            text(c, title, 54, 92, 42, TEXT, true);
-            text(c, subtitle, 54, 140, 22, MUTED, false);
-        }
-
-        private void drawProfileLine(Canvas c, float y, String label) {
-            card(c, 44, y, 1036, y + 92, 24, SURFACE, BORDER);
-            text(c, label, 80, y + 58, 21, TEXT, true);
-            drawChevronRight(c, 995, y + 46, MUTED);
-        }
-
-        private void drawBottomNavigation(Canvas c) {
-            float top = virtualHeight - 170;
-            roundFill(c, 28, top, 1052, virtualHeight - 15, 32, Color.rgb(6, 24, 42));
-            roundStroke(c, 28, top, 1052, virtualHeight - 15, 32, Color.rgb(22, 54, 85), 2);
-
-            String[] labels = {"Главная", "События", "Заявки", "Профиль"};
-            for (int i = 0; i < 4; i++) {
-                float cx = 135 + i * 270;
-                int color = selectedTab == i ? BLUE : MUTED;
-                if (i == 0) {
-                    drawHomeIcon(c, cx, top + 58, color);
-                } else if (i == 1) {
-                    drawClock(c, cx, top + 58, color);
-                } else if (i == 2) {
-                    drawClipboard(c, cx, top + 58, color);
-                } else {
-                    drawPerson(c, cx, top + 58, color);
-                }
-                textCentered(c, labels[i], cx, top + 118, 16, color, selectedTab == i);
-            }
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent event) {
-            float x = event.getX() / scale;
-            float y = event.getY() / scale;
-            float navTop = virtualHeight - 185;
-
-            if (event.getAction() == MotionEvent.ACTION_UP && y >= navTop) {
-                selectedTab = Math.max(0, Math.min(3, (int) (x / 270f)));
-                dragging = false;
-                invalidate();
-                return true;
-            }
-
-            if (selectedTab != 0 || opened) {
-                return true;
-            }
-
-            final float knobCenterX = 154 + swipeOffset;
-            final float knobCenterY = 744;
-            final float maxOffset = 760;
-
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                float dx = x - knobCenterX;
-                float dy = y - knobCenterY;
-                dragging = dx * dx + dy * dy <= 105 * 105 || (y > 665 && y < 820 && x < 330);
-                if (dragging && swipeAnimator != null) {
-                    swipeAnimator.cancel();
-                }
-                return true;
-            }
-
-            if (event.getAction() == MotionEvent.ACTION_MOVE && dragging) {
-                swipeOffset = Math.max(0, Math.min(maxOffset, x - 154));
-                invalidate();
-                return true;
-            }
-
-            if ((event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) && dragging) {
-                dragging = false;
-                if (swipeOffset >= maxOffset * 0.72f) {
-                    opened = true;
-                    animateSwipe(maxOffset, 170);
-                    Toast.makeText(getContext(), "Дверь открыта (демо)", Toast.LENGTH_SHORT).show();
-                    handler.postDelayed(() -> {
-                        animateSwipe(0f, 300);
-                        handler.postDelayed(() -> {
-                            opened = false;
-                            invalidate();
-                        }, 320);
-                    }, 1400);
-                } else {
-                    animateSwipe(0f, 220);
-                }
-                return true;
-            }
-
             return true;
         }
 
-        private void animateSwipe(float target, int duration) {
-            if (swipeAnimator != null) {
-                swipeAnimator.cancel();
-            }
-            swipeAnimator = ValueAnimator.ofFloat(swipeOffset, target);
-            swipeAnimator.setDuration(duration);
-            swipeAnimator.addUpdateListener(animation -> {
-                swipeOffset = (float) animation.getAnimatedValue();
-                invalidate();
-            });
-            swipeAnimator.start();
+        void animate(float to,boolean ok){
+            if(anim!=null)anim.cancel();
+            anim=ValueAnimator.ofFloat(drag,to); anim.setDuration(220);
+            anim.addUpdateListener(a->{drag=(float)a.getAnimatedValue();invalidate();}); anim.start();
+            if(ok){opened=true;Toast.makeText(getContext(),"Демо: команда открытия двери",Toast.LENGTH_SHORT).show();
+                h.postDelayed(()->{opened=false;animate(0,false);},1300);}
         }
 
-        private void drawBell(Canvas c, float cx, float cy) {
-            stroke.setColor(TEXT);
-            stroke.setStrokeWidth(5);
-            RectF r = new RectF(cx - 22, cy - 28, cx + 22, cy + 22);
-            c.drawArc(r, 200, 140, false, stroke);
-            c.drawLine(cx - 19, cy + 8, cx - 19, cy + 18, stroke);
-            c.drawLine(cx + 19, cy + 8, cx + 19, cy + 18, stroke);
-            c.drawLine(cx - 19, cy + 18, cx + 19, cy + 18, stroke);
-            circle(c, cx, cy + 28, 5, TEXT);
+        void txt(Canvas c,String z,float x,float y,float sz,int col,boolean bold){
+            p.setShader(null);p.setColor(col);p.setTextSize(sz);
+            p.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));c.drawText(z,x,y,p);
         }
-
-        private void drawDoorIcon(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(5);
-            c.drawRoundRect(new RectF(cx - 27, cy - 40, cx + 27, cy + 39), 7, 7, stroke);
-            circle(c, cx + 13, cy, 4, color);
-            c.drawLine(cx - 39, cy + 42, cx + 39, cy + 42, stroke);
+        void center(Canvas c,String z,float x,float y,float sz,int col,boolean bold){
+            p.setTextSize(sz);p.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));
+            txt(c,z,x-p.measureText(z)/2,y,sz,col,bold);
         }
-
-        private void drawSmallDoor(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawRoundRect(new RectF(cx - 15, cy - 22, cx + 15, cy + 22), 3, 3, stroke);
-            circle(c, cx + 7, cy, 2.5f, color);
-        }
-
-        private void drawShield(Canvas c, float cx, float cy) {
-            Path p = new Path();
-            p.moveTo(cx, cy - 44);
-            p.lineTo(cx + 39, cy - 25);
-            p.lineTo(cx + 31, cy + 26);
-            p.quadTo(cx, cy + 51, cx, cy + 51);
-            p.quadTo(cx - 31, cy + 26, cx - 31, cy + 26);
-            p.lineTo(cx - 39, cy - 25);
-            p.close();
-            paint.setColor(Color.rgb(11, 61, 46));
-            c.drawPath(p, paint);
-            stroke.setColor(GREEN);
-            stroke.setStrokeWidth(3);
-            c.drawPath(p, stroke);
-            stroke.setStrokeWidth(5);
-            c.drawLine(cx - 15, cy + 1, cx - 3, cy + 13, stroke);
-            c.drawLine(cx - 3, cy + 13, cx + 20, cy - 14, stroke);
-        }
-
-        private void drawBuildingIcon(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(3);
-            c.drawRect(cx - 20, cy - 28, cx + 20, cy + 24, stroke);
-            for (int y = -16; y <= 2; y += 18) {
-                for (int x = -10; x <= 10; x += 20) {
-                    c.drawRect(cx + x - 4, cy + y - 4, cx + x + 4, cy + y + 4, stroke);
-                }
-            }
-        }
-
-        private void drawPerson(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawCircle(cx, cy - 13, 10, stroke);
-            c.drawRoundRect(new RectF(cx - 20, cy + 2, cx + 20, cy + 26), 11, 11, stroke);
-        }
-
-        private void drawGear(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawCircle(cx, cy, 18, stroke);
-            c.drawCircle(cx, cy, 7, stroke);
-            for (int i = 0; i < 8; i++) {
-                double a = i * Math.PI / 4.0;
-                float x1 = cx + (float) Math.cos(a) * 20;
-                float y1 = cy + (float) Math.sin(a) * 20;
-                float x2 = cx + (float) Math.cos(a) * 28;
-                float y2 = cy + (float) Math.sin(a) * 28;
-                c.drawLine(x1, y1, x2, y2, stroke);
-            }
-        }
-
-        private void drawHomeIcon(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(5);
-            Path p = new Path();
-            p.moveTo(cx - 25, cy - 1);
-            p.lineTo(cx, cy - 25);
-            p.lineTo(cx + 25, cy - 1);
-            p.lineTo(cx + 25, cy + 25);
-            p.lineTo(cx - 25, cy + 25);
-            p.close();
-            c.drawPath(p, stroke);
-            c.drawRect(cx - 7, cy + 7, cx + 7, cy + 25, stroke);
-        }
-
-        private void drawClock(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawCircle(cx, cy, 27, stroke);
-            c.drawLine(cx, cy, cx, cy - 15, stroke);
-            c.drawLine(cx, cy, cx + 14, cy + 8, stroke);
-        }
-
-        private void drawClipboard(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawRoundRect(new RectF(cx - 22, cy - 27, cx + 22, cy + 29), 5, 5, stroke);
-            c.drawRoundRect(new RectF(cx - 10, cy - 33, cx + 10, cy - 21), 4, 4, stroke);
-            c.drawLine(cx - 11, cy - 5, cx + 11, cy - 5, stroke);
-            c.drawLine(cx - 11, cy + 8, cx + 11, cy + 8, stroke);
-        }
-
-        private void drawChevronDown(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawLine(cx - 10, cy - 5, cx, cy + 5, stroke);
-            c.drawLine(cx, cy + 5, cx + 10, cy - 5, stroke);
-        }
-
-        private void drawChevronRight(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(4);
-            c.drawLine(cx - 5, cy - 10, cx + 5, cy, stroke);
-            c.drawLine(cx + 5, cy, cx - 5, cy + 10, stroke);
-        }
-
-        private void drawArrow(Canvas c, float cx, float cy, int color) {
-            stroke.setColor(color);
-            stroke.setStrokeWidth(7);
-            c.drawLine(cx - 10, cy - 21, cx + 11, cy, stroke);
-            c.drawLine(cx + 11, cy, cx - 10, cy + 21, stroke);
-        }
-
-        private void card(Canvas c, float l, float t, float r, float b, float radius, int fill, int border) {
-            roundFill(c, l, t, r, b, radius, fill);
-            roundStroke(c, l, t, r, b, radius, border, 2);
-        }
-
-        private void roundFill(Canvas c, float l, float t, float r, float b, float radius, int color) {
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(color);
-            c.drawRoundRect(new RectF(l, t, r, b), radius, radius, paint);
-        }
-
-        private void roundStroke(Canvas c, float l, float t, float r, float b, float radius, int color, float width) {
-            stroke.setStyle(Paint.Style.STROKE);
-            stroke.setColor(color);
-            stroke.setStrokeWidth(width);
-            c.drawRoundRect(new RectF(l, t, r, b), radius, radius, stroke);
-        }
-
-        private void circle(Canvas c, float cx, float cy, float radius, int color) {
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(color);
-            c.drawCircle(cx, cy, radius, paint);
-        }
-
-        private void text(Canvas c, String value, float x, float y, float size, int color, boolean bold) {
-            paint.setShader(null);
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(color);
-            paint.setTextSize(size);
-            paint.setTextAlign(Paint.Align.LEFT);
-            paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
-            c.drawText(value, x, y, paint);
-        }
-
-        private void textCentered(Canvas c, String value, float x, float y, float size, int color, boolean bold) {
-            paint.setShader(null);
-            paint.setStyle(Paint.Style.FILL);
-            paint.setColor(color);
-            paint.setTextSize(size);
-            paint.setTextAlign(Paint.Align.CENTER);
-            paint.setTypeface(android.graphics.Typeface.create("sans", bold ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL));
-            c.drawText(value, x, y, paint);
-            paint.setTextAlign(Paint.Align.LEFT);
-        }
+        void card(Canvas c,float l,float t,float r,float b,float rad,int fill,int border){rfill(c,l,t,r,b,rad,fill);rstroke(c,l,t,r,b,rad,border,1.2f);}
+        void rfill(Canvas c,float l,float t,float r,float b,float rad,int col){p.setShader(null);p.setColor(col);p.setStyle(Paint.Style.FILL);c.drawRoundRect(new RectF(l,t,r,b),rad,rad,p);}
+        void rstroke(Canvas c,float l,float t,float r,float b,float rad,int col,float w){s.setColor(col);s.setStrokeWidth(w);c.drawRoundRect(new RectF(l,t,r,b),rad,rad,s);}
+        void circle(Canvas c,float x,float y,float r,int col){p.setShader(null);p.setColor(col);c.drawCircle(x,y,r,p);}
+        void line(Canvas c,float x1,float y1,float x2,float y2,int col,float w){s.setColor(col);s.setStrokeWidth(w);c.drawLine(x1,y1,x2,y2,s);}
+        void chevronDown(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawLine(x-8,y-3,x,y+5,s);c.drawLine(x,y+5,x+8,y-3,s);}
+        void right(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawLine(x-4,y-8,x+4,y,s);c.drawLine(x+4,y,x-4,y+8,s);}
+        void arrow(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(4);c.drawLine(x-9,y-13,x+4,y,s);c.drawLine(x+4,y,x-9,y+13,s);}
+        void bell(Canvas c,float x,float y){s.setColor(Color.WHITE);s.setStrokeWidth(2.5f);c.drawArc(new RectF(x-11,y-15,x+11,y+10),190,160,false,s);line(c,x-11,y+4,x-11,y+11,Color.WHITE,2.5f);line(c,x+11,y+4,x+11,y+11,Color.WHITE,2.5f);line(c,x-11,y+11,x+11,y+11,Color.WHITE,2.5f);circle(c,x,y+16,2.5f,Color.WHITE);}
+        void door(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawRect(x-21,y-34,x+20,y+34,s);circle(c,x+9,y,3,col);line(c,x-30,y+35,x+29,y+35,col,3);}
+        void smallDoor(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawRect(x-10,y-18,x+10,y+16,s);circle(c,x+5,y,1.8f,col);}
+        void shield(Canvas c,float x,float y){Path q=new Path();q.moveTo(x,y-35);q.lineTo(x+27,y-22);q.lineTo(x+22,y+22);q.lineTo(x,y+37);q.lineTo(x-22,y+22);q.lineTo(x-27,y-22);q.close();p.setColor(Color.rgb(9,55,41));c.drawPath(q,p);s.setColor(GREEN);s.setStrokeWidth(2);c.drawPath(q,s);line(c,x-10,y,x-2,y+8,GREEN,3);line(c,x-2,y+8,x+13,y-10,GREEN,3);}
+        void building(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2);c.drawRect(x-12,y-22,x+12,y+18,s);for(int a=0;a<2;a++)for(int b=0;b<2;b++)c.drawRect(x-7+b*10,y-15+a*12,x-2+b*10,y-10+a*12,s);c.drawRect(x-3,y+8,x+3,y+18,s);}
+        void home(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);Path q=new Path();q.moveTo(x-18,y);q.lineTo(x,y-17);q.lineTo(x+18,y);q.lineTo(x+18,y+19);q.lineTo(x-18,y+19);q.close();c.drawPath(q,s);c.drawRect(x-4,y+7,x+4,y+19,s);}
+        void clock(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawCircle(x,y,18,s);line(c,x,y,x,y-10,col,2.5f);line(c,x,y,x+8,y+5,col,2.5f);}
+        void clipboard(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawRoundRect(new RectF(x-15,y-19,x+15,y+20),3,3,s);c.drawRect(x-7,y-24,x+7,y-17,s);line(c,x-8,y-6,x+8,y-6,col,2.5f);line(c,x-8,y+3,x+8,y+3,col,2.5f);}
+        void person(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawCircle(x,y-9,8,s);c.drawArc(new RectF(x-14,y+2,x+14,y+24),180,180,false,s);}
+        void gear(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.3f);c.drawCircle(x,y,12,s);c.drawCircle(x,y,4,s);for(int i=0;i<8;i++){double a=Math.PI*2*i/8;line(c,x+(float)Math.cos(a)*15,y+(float)Math.sin(a)*15,x+(float)Math.cos(a)*20,y+(float)Math.sin(a)*20,col,2.3f);}}
     }
 }
