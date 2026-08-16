@@ -4,189 +4,65 @@ import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
 import android.os.*;
-import android.util.Base64;
+import android.util.TypedValue;
 import android.view.*;
-import android.widget.Toast;
-import java.io.*;
+import android.widget.*;
 
 public class MainActivity extends Activity {
-    @Override public void onCreate(Bundle b) {
-        super.onCreate(b);
-        getWindow().setStatusBarColor(Color.rgb(5,19,37));
-        getWindow().setNavigationBarColor(Color.rgb(4,16,31));
-        if (Build.VERSION.SDK_INT >= 29) {
-            getWindow().setStatusBarContrastEnforced(false);
-            getWindow().setNavigationBarContrastEnforced(false);
+    static final int BG=Color.rgb(5,19,37), SUR=Color.rgb(8,28,50), BORDER=Color.rgb(26,61,95), BLUE=Color.rgb(48,136,255), TEXT=Color.rgb(246,249,255), MUT=Color.rgb(143,165,194), GREEN=Color.rgb(53,208,127);
+    LinearLayout root, nav; FrameLayout content; TextView[] navText=new TextView[4]; ImageView[] navIcon=new ImageView[4]; int page;
+
+    @Override public void onCreate(Bundle b){super.onCreate(b); getWindow().setStatusBarColor(Color.rgb(46,46,46)); getWindow().setNavigationBarColor(Color.rgb(4,16,31)); if(Build.VERSION.SDK_INT>=29){getWindow().setStatusBarContrastEnforced(false);getWindow().setNavigationBarContrastEnforced(false);} if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false); shell(); setContentView(root); insets(); show(0);}
+
+    void shell(){
+        root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG);
+        content=new FrameLayout(this); root.addView(content,new LinearLayout.LayoutParams(-1,0,1));
+        nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setPadding(dp(8),dp(3),dp(8),dp(3)); nav.setBackground(bg(SUR,BORDER,22,1));
+        LinearLayout.LayoutParams nlp=new LinearLayout.LayoutParams(-1,dp(72)); nlp.setMargins(dp(14),dp(4),dp(14),dp(8)); root.addView(nav,nlp);
+        String[] names={"Главная","События","Заявки","Профиль"}; int[] icons={android.R.drawable.ic_menu_view,android.R.drawable.ic_menu_recent_history,android.R.drawable.ic_menu_agenda,android.R.drawable.ic_menu_myplaces};
+        for(int i=0;i<4;i++){final int x=i; LinearLayout item=new LinearLayout(this); item.setOrientation(LinearLayout.VERTICAL); item.setGravity(Gravity.CENTER); item.setClickable(true); item.setOnClickListener(v->show(x)); ImageView iv=new ImageView(this); iv.setImageResource(icons[i]); iv.setColorFilter(MUT); item.addView(iv,new LinearLayout.LayoutParams(dp(28),dp(28))); TextView tv=t(names[i],11,MUT,false); LinearLayout.LayoutParams tlp=new LinearLayout.LayoutParams(-2,-2); tlp.topMargin=dp(2); item.addView(tv,tlp); nav.addView(item,new LinearLayout.LayoutParams(0,-1,1)); navText[i]=tv;navIcon[i]=iv;}
+    }
+    void insets(){root.setOnApplyWindowInsetsListener((v,i)->{int top,bottom;if(Build.VERSION.SDK_INT>=30){android.graphics.Insets z=i.getInsets(WindowInsets.Type.systemBars());top=z.top;bottom=z.bottom;}else{top=i.getSystemWindowInsetTop();bottom=i.getSystemWindowInsetBottom();} root.setPadding(0,top,0,bottom);return i;});root.requestApplyInsets();}
+    void show(int p){page=p;content.removeAllViews(); View v=p==0?home():p==1?eventsPage():p==2?requestsPage():profilePage(); v.setAlpha(0);content.addView(v,new FrameLayout.LayoutParams(-1,-1));v.animate().alpha(1).setDuration(120).start();for(int i=0;i<4;i++){int c=i==p?BLUE:MUT;navText[i].setTextColor(c);navIcon[i].setColorFilter(c);}}
+
+    View home(){ScrollView s=new ScrollView(this);s.setFillViewport(true);s.setOverScrollMode(View.OVER_SCROLL_NEVER);LinearLayout p=col();p.setPadding(dp(20),dp(16),dp(20),dp(18));s.addView(p);p.addView(header("Мой дом","Болградская, 46"));space(p,14);p.addView(new HeroView(this),new LinearLayout.LayoutParams(-1,dp(220)));space(p,14);SwipeView sw=new SwipeView(this);sw.cb=()->Toast.makeText(this,"Демо: команда открытия двери",Toast.LENGTH_SHORT).show();p.addView(sw,new LinearLayout.LayoutParams(-1,dp(108)));space(p,14);p.addView(status(),new LinearLayout.LayoutParams(-1,dp(92)));space(p,18);LinearLayout h=row();h.setGravity(Gravity.CENTER_VERTICAL);h.addView(t("Последние события",20,TEXT,true),new LinearLayout.LayoutParams(0,-2,1));TextView all=t("Все события  ›",13,BLUE,false);all.setOnClickListener(v->show(1));h.addView(all);p.addView(h);space(p,9);p.addView(eventCard());return s;}
+    View header(String a,String b){LinearLayout r=row();r.setGravity(Gravity.CENTER_VERTICAL);LinearLayout l=col();l.addView(t(a+"  ⌄",30,TEXT,true));l.addView(t(b,16,MUT,false));r.addView(l,new LinearLayout.LayoutParams(0,-2,1));TextView bell=t("♢",30,TEXT,false);bell.setGravity(Gravity.CENTER);bell.setBackground(bg(SUR,BORDER,18,1));bell.setOnClickListener(v->Toast.makeText(this,"Уведомлений пока нет",Toast.LENGTH_SHORT).show());r.addView(bell,new LinearLayout.LayoutParams(dp(58),dp(58)));return r;}
+    View status(){LinearLayout c=row();c.setGravity(Gravity.CENTER_VERTICAL);c.setPadding(dp(14),dp(10),dp(12),dp(10));c.setBackground(bg(SUR,BORDER,22,1));TextView sh=t("✓",26,GREEN,true);sh.setGravity(Gravity.CENTER);sh.setBackground(bg(Color.rgb(9,55,41),GREEN,16,1));c.addView(sh,new LinearLayout.LayoutParams(dp(48),dp(48)));LinearLayout st=col();LinearLayout.LayoutParams slp=new LinearLayout.LayoutParams(0,-2,1);slp.leftMargin=dp(10);st.addView(t("Система работает",17,TEXT,true));st.addView(t("Все сервисы активны",13,MUT,false));c.addView(st,slp);c.addView(metric("▦","9 этажей"),new LinearLayout.LayoutParams(dp(76),dp(64)));c.addView(metric("▯","3 подъезда"),new LinearLayout.LayoutParams(dp(88),dp(64)));return c;}
+    View metric(String a,String b){LinearLayout x=col();x.setGravity(Gravity.CENTER);x.addView(t(a,25,MUT,false));x.addView(t(b,11,MUT,false));return x;}
+    View eventCard(){LinearLayout c=col();c.setPadding(dp(12),dp(3),dp(12),dp(3));c.setBackground(bg(SUR,BORDER,22,1));c.addView(er(android.R.drawable.ic_lock_idle_lock,BLUE,"Дверь открыта","Сегодня, 08:37"));c.addView(line());c.addView(er(android.R.drawable.ic_menu_myplaces,GREEN,"Вход по коду","Сегодня, 08:31"));c.addView(line());c.addView(er(android.R.drawable.ic_menu_manage,BLUE,"Плановое обслуживание","Инженерная служба • Вчера, 16:42"));return c;}
+    View er(int icon,int color,String a,String b){LinearLayout r=row();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(4),dp(8),dp(4),dp(8));r.setMinimumHeight(dp(70));ImageView iv=new ImageView(this);iv.setImageResource(icon);iv.setColorFilter(color);iv.setPadding(dp(9),dp(9),dp(9),dp(9));iv.setBackground(bg(alpha(color,30),alpha(color,80),13,1));r.addView(iv,new LinearLayout.LayoutParams(dp(44),dp(44)));LinearLayout tx=col();LinearLayout.LayoutParams xlp=new LinearLayout.LayoutParams(0,-2,1);xlp.leftMargin=dp(12);tx.addView(t(a,16,TEXT,true));tx.addView(t(b,12,MUT,false));r.addView(tx,xlp);r.addView(t("›",28,MUT,false));return r;}
+    View line(){View v=new View(this);v.setBackgroundColor(Color.rgb(22,51,77));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.leftMargin=dp(60);v.setLayoutParams(lp);return v;}
+
+    View eventsPage(){LinearLayout p=basePage("События","История дома");LinearLayout c=col();c.setPadding(dp(12),dp(3),dp(12),dp(3));c.setBackground(bg(SUR,BORDER,22,1));String[][] e={{"Дверь открыта","Сегодня, 08:37"},{"Вход по коду","Сегодня, 08:31"},{"Дверь закрыта","Сегодня, 08:30"},{"Плановое обслуживание","Вчера, 16:42"},{"Проверка системы","Вчера, 11:10"}};for(int i=0;i<e.length;i++){c.addView(er(i==1?android.R.drawable.ic_menu_myplaces:i==3?android.R.drawable.ic_menu_manage:android.R.drawable.ic_lock_idle_lock,i==1?GREEN:BLUE,e[i][0],e[i][1]));if(i<e.length-1)c.addView(line());}p.addView(c);return wrap(p);}
+    View requestsPage(){LinearLayout p=basePage("Заявки","Обращения в службу дома");TextView b=t("+  Оставить заявку",16,Color.WHITE,true);b.setGravity(Gravity.CENTER);b.setBackground(bg(BLUE,0,18,0));b.setOnClickListener(v->Toast.makeText(this,"Форма заявки будет подключена позже",Toast.LENGTH_SHORT).show());p.addView(b,new LinearLayout.LayoutParams(-1,dp(52)));space(p,14);LinearLayout c=col();c.setPadding(dp(16),dp(14),dp(16),dp(14));c.setBackground(bg(SUR,BORDER,22,1));c.addView(t("Последняя заявка",13,MUT,false));c.addView(t("Не работает освещение у входа",17,TEXT,true));c.addView(t("●  Принято в работу",13,GREEN,true));p.addView(c);return wrap(p);}
+    View profilePage(){LinearLayout p=basePage("Профиль","Настройки пользователя");LinearLayout c=col();c.setBackground(bg(SUR,BORDER,22,1));c.setPadding(dp(14),dp(6),dp(14),dp(6));c.addView(setting("Уведомления"));c.addView(line());c.addView(setting("Настройки приложения"));c.addView(line());c.addView(setting("Безопасность"));p.addView(c);return wrap(p);}
+    LinearLayout basePage(String a,String b){LinearLayout p=col();p.setPadding(dp(20),dp(16),dp(20),dp(18));p.addView(header(a,b));space(p,18);return p;}
+    View wrap(LinearLayout p){ScrollView s=new ScrollView(this);s.setFillViewport(true);s.addView(p);return s;}
+    View setting(String a){LinearLayout r=row();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(5),dp(10),dp(5),dp(10));TextView x=t(a,16,TEXT,false);r.addView(x,new LinearLayout.LayoutParams(0,-2,1));r.addView(t("›",28,MUT,false));r.setOnClickListener(v->Toast.makeText(this,a+": раздел в разработке",Toast.LENGTH_SHORT).show());return r;}
+
+    LinearLayout row(){LinearLayout x=new LinearLayout(this);x.setOrientation(LinearLayout.HORIZONTAL);return x;} LinearLayout col(){LinearLayout x=new LinearLayout(this);x.setOrientation(LinearLayout.VERTICAL);return x;}
+    TextView t(String z,float sp,int c,boolean b){TextView v=new TextView(this);v.setText(z);v.setTextColor(c);v.setTextSize(TypedValue.COMPLEX_UNIT_SP,sp);v.setIncludeFontPadding(false);v.setTypeface(android.graphics.Typeface.DEFAULT,b?1:0);return v;}
+    void space(LinearLayout p,int x){p.addView(new View(this),new LinearLayout.LayoutParams(1,dp(x)));}
+    GradientDrawable bg(int fill,int stroke,float r,int sw){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(r));if(sw>0)d.setStroke(dp(sw),stroke);return d;} int dp(float x){return Math.round(x*getResources().getDisplayMetrics().density);} static int alpha(int c,int a){return Color.argb(a,Color.red(c),Color.green(c),Color.blue(c));}
+
+    static class HeroView extends View{
+        Paint p=new Paint(3),s=new Paint(3);Path q=new Path();float d;HeroView(Context c){super(c);d=getResources().getDisplayMetrics().density;setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        @Override protected void onDraw(Canvas c){float w=getWidth(),h=getHeight();p.setShader(new LinearGradient(0,0,0,h,Color.rgb(30,62,88),Color.rgb(7,25,43),Shader.TileMode.CLAMP));c.drawRoundRect(new RectF(0,0,w,h),24*d,24*d,p);p.setShader(null);c.save();q.reset();q.addRoundRect(new RectF(0,0,w,h),24*d,24*d,Path.Direction.CW);c.clipPath(q);drawScene(c,w,h);c.restore();s.setStyle(Paint.Style.STROKE);s.setStrokeWidth(d);s.setColor(BORDER);c.drawRoundRect(new RectF(d/2,d/2,w-d/2,h-d/2),24*d,24*d,s);chip(c);}
+        void drawScene(Canvas c,float w,float h){p.setColor(Color.rgb(16,47,52));c.drawRect(0,h*.76f,w,h,p);p.setColor(Color.rgb(108,111,106));q.reset();q.moveTo(w*.12f,h*.13f);q.lineTo(w*.90f,h*.08f);q.lineTo(w*.95f,h*.78f);q.lineTo(w*.10f,h*.78f);q.close();c.drawPath(q,p);s.setStyle(Paint.Style.STROKE);s.setStrokeWidth(d);s.setColor(Color.rgb(55,80,70));for(int i=1;i<8;i++){float y=h*(.16f+i*.075f);c.drawLine(w*.11f,y,w*.94f,y,s);}for(int i=1;i<8;i++){float x=w*(.14f+i*.10f);c.drawLine(x,h*.12f,x,h*.77f,s);}for(int floor=0;floor<7;floor++){float y=h*(.20f+floor*.075f);for(int col=0;col<6;col++){float x=w*(.28f+col*.105f);boolean lit=(floor+col)%5==0;p.setColor(lit?Color.rgb(246,184,92):Color.rgb(78,105,121));c.drawRect(x,y,x+w*.045f,y+h*.045f,p);}}
+            p.setColor(Color.rgb(67,72,73));c.drawRect(w*.40f,h*.65f,w*.74f,h*.69f,p);p.setColor(Color.rgb(25,49,62));c.drawRect(w*.43f,h*.69f,w*.58f,h*.80f,p);p.setColor(Color.rgb(20,102,144));c.drawRect(w*.58f,h*.69f,w*.72f,h*.80f,p);p.setColor(Color.rgb(62,137,180));c.drawRect(w*.39f,h*.80f,w*.73f,h*.825f,p);
+            tree(c,w*.10f,h*.66f,h*.20f);tree(c,w*.88f,h*.63f,h*.23f);s.setColor(Color.rgb(94,106,111));s.setStrokeWidth(2*d);c.drawLine(w*.21f,h*.77f,w*.21f,h*.48f,s);c.drawArc(new RectF(w*.21f,h*.42f,w*.31f,h*.52f),180,90,false,s);p.setColor(Color.rgb(249,190,92));c.drawCircle(w*.31f,h*.47f,3*d,p);p.setColor(Color.argb(40,255,190,92));c.drawCircle(w*.31f,h*.47f,15*d,p);
         }
-        setContentView(new HomeView(this));
+        void tree(Canvas c,float x,float y,float r){p.setColor(Color.rgb(20,62,50));c.drawRect(x-2*d,y-r*.15f,x+2*d,h()*0.86f,p);p.setColor(Color.rgb(22,79,58));c.drawCircle(x,y-r*.55f,r*.46f,p);c.drawCircle(x-r*.35f,y-r*.35f,r*.40f,p);c.drawCircle(x+r*.30f,y-r*.30f,r*.42f,p);}float h(){return getHeight();}
+        void chip(Canvas c){p.setColor(Color.argb(220,5,22,39));c.drawRoundRect(new RectF(12*d,12*d,91*d,42*d),18*d,18*d,p);p.setColor(GREEN);c.drawCircle(26*d,27*d,4*d,p);p.setColor(TEXT);p.setTextSize(13*d);p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);c.drawText("Онлайн",37*d,32*d,p);}
     }
 
-    static class HomeView extends View {
-        static final float W=750f;
-        static final int BG=Color.rgb(5,19,37), BG2=Color.rgb(4,16,31),
-                SUR=Color.rgb(8,28,50), BORDER=Color.rgb(25,60,94),
-                BLUE=Color.rgb(37,133,255), BLUEL=Color.rgb(79,160,255),
-                TXT=Color.rgb(246,249,255), MUT=Color.rgb(139,164,197),
-                GREEN=Color.rgb(54,211,128);
-        final Paint p=new Paint(3), s=new Paint(3);
-        final Handler h=new Handler(Looper.getMainLooper());
-        Bitmap hero;
-        int topInset,bottomInset;
-        float sc=1, vh=1500, drag=0;
-        boolean dragging, opened;
-        ValueAnimator anim;
-
-        HomeView(Context c) {
-            super(c);
-            s.setStyle(Paint.Style.STROKE); s.setStrokeCap(Paint.Cap.ROUND); s.setStrokeJoin(Paint.Join.ROUND);
-            hero=loadHero();
-            setOnApplyWindowInsetsListener((v,i)->{
-                topInset=i.getSystemWindowInsetTop();
-                bottomInset=i.getSystemWindowInsetBottom();
-                invalidate(); return i;
-            });
-            requestApplyInsets();
-        }
-
-        Bitmap loadHero() {
-            try {
-                InputStream in=getResources().openRawResource(R.raw.house46_hero_base64);
-                ByteArrayOutputStream o=new ByteArrayOutputStream();
-                byte[] b=new byte[4096]; int n;
-                while((n=in.read(b))!=-1)o.write(b,0,n);
-                in.close();
-                byte[] d=Base64.decode(o.toByteArray(),Base64.DEFAULT);
-                return BitmapFactory.decodeByteArray(d,0,d.length);
-            } catch(Exception e){ return null; }
-        }
-
-        @Override protected void onDraw(Canvas c) {
-            sc=getWidth()/W;
-            vh=Math.max(1,getHeight()-topInset-bottomInset)/sc;
-            c.save(); c.translate(0,topInset); c.scale(sc,sc);
-            p.setShader(new LinearGradient(0,0,0,vh,BG,BG2,Shader.TileMode.CLAMP));
-            c.drawRect(0,0,W,vh,p); p.setShader(null);
-            header(c); hero(c); swipe(c); status(c); events(c); nav(c);
-            c.restore();
-        }
-
-        void header(Canvas c){
-            txt(c,"Мой дом",34,78,45,TXT,true);
-            chevronDown(c,294,60,MUT);
-            txt(c,"Болградская, 46",34,119,23,MUT,false);
-            card(c,649,31,716,101,20,SUR,BORDER);
-            bell(c,683,62); circle(c,704,42,7,BLUE);
-        }
-
-        void hero(Canvas c){
-            float l=31,t=148,r=719,b=544,rad=25;
-            Path path=new Path(); path.addRoundRect(new RectF(l,t,r,b),rad,rad,Path.Direction.CW);
-            c.save(); c.clipPath(path);
-            if(hero!=null)c.drawBitmap(hero,new Rect(0,0,hero.getWidth(),hero.getHeight()),new RectF(l,t,r,b),p);
-            else {p.setColor(Color.rgb(11,37,64)); c.drawRect(l,t,r,b,p);}
-            c.restore(); rstroke(c,l,t,r,b,rad,BORDER,1.5f);
-        }
-
-        void swipe(Canvas c){
-            card(c,31,564,719,758,28,SUR,Color.rgb(25,84,142));
-            rstroke(c,53,584,697,738,76,Color.rgb(25,94,165),1.6f);
-            float x=125+drag,y=661;
-            circle(c,x,y,73,Color.rgb(12,49,91));
-            rstroke(c,x-73,y-73,x+73,y+73,73,BLUEL,2.5f);
-            door(c,x,y,Color.WHITE);
-            if(!opened){
-                arrow(c,246,y,Color.rgb(26,84,147)); arrow(c,272,y,Color.rgb(29,104,184)); arrow(c,298,y,BLUE);
-                txt(c,"Свайп, чтобы открыть дверь",347,650,22,TXT,true);
-                txt(c,"Потяните вправо",347,691,18,MUT,false);
-            } else {
-                txt(c,"Дверь открыта",347,650,23,GREEN,true);
-                txt(c,"Команда выполнена",347,691,18,MUT,false);
-            }
-        }
-
-        void status(Canvas c){
-            float t=778;
-            card(c,31,t,719,t+122,24,SUR,BORDER);
-            shield(c,81,t+61);
-            txt(c,"Система работает",135,t+51,23,TXT,true);
-            txt(c,"Все сервисы активны",135,t+82,17,MUT,false);
-            line(c,433,t+25,433,t+97,Color.rgb(27,58,86),1);
-            line(c,575,t+25,575,t+97,Color.rgb(27,58,86),1);
-            building(c,504,t+49,MUT); center(c,"9 этажей",504,t+91,16,MUT,false);
-            smallDoor(c,645,t+49,MUT); center(c,"3 подъезда",645,t+91,16,MUT,false);
-        }
-
-        void events(Canvas c){
-            txt(c,"Последние события",31,946,26,TXT,true);
-            txt(c,"Все события",600,946,17,BLUE,false); right(c,707,939,BLUE);
-            float t=971; card(c,31,t,719,1296,24,SUR,BORDER);
-            row(c,t,0,"Дверь открыта","Сегодня, 08:37",BLUE);
-            row(c,t,1,"Вход по коду","Сегодня, 08:31",GREEN);
-            row(c,t,2,"Плановое обслуживание","Инженерная служба • Вчера, 16:42",BLUE);
-        }
-
-        void row(Canvas c,float t,int i,String a,String b,int col){
-            float y=t+i*106;
-            if(i>0)line(c,109,y,695,y,Color.rgb(23,53,79),1);
-            rfill(c,48,y+21,93,y+66,12,Color.argb(48,Color.red(col),Color.green(col),Color.blue(col)));
-            rstroke(c,48,y+21,93,y+66,12,Color.argb(100,Color.red(col),Color.green(col),Color.blue(col)),1);
-            if(i==0)smallDoor(c,70,y+44,col); else if(i==1)person(c,70,y+45,col); else gear(c,70,y+45,col);
-            txt(c,a,112,y+50,20,TXT,true); txt(c,b,112,y+78,i==2?14:16,MUT,false); right(c,690,y+48,MUT);
-        }
-
-        void nav(Canvas c){
-            float t=Math.max(1320,vh-108);
-            card(c,16,t,734,t+98,22,Color.rgb(5,24,43),Color.rgb(20,51,78));
-            float[] x={95,280,468,655}; String[] q={"Главная","События","Заявки","Профиль"};
-            home(c,x[0],t+36,BLUE); clock(c,x[1],t+36,MUT); clipboard(c,x[2],t+36,MUT); person(c,x[3],t+36,MUT);
-            for(int i=0;i<4;i++)center(c,q[i],x[i],t+76,15,i==0?BLUE:MUT,i==0);
-        }
-
-        @Override public boolean onTouchEvent(MotionEvent e){
-            float x=e.getX()/sc, y=(e.getY()-topInset)/sc;
-            float dx=x-(125+drag),dy=y-661;
-            if(e.getAction()==MotionEvent.ACTION_DOWN && dx*dx+dy*dy<92*92){dragging=true;return true;}
-            if(e.getAction()==MotionEvent.ACTION_MOVE&&dragging){drag=Math.max(0,Math.min(500,x-125));invalidate();return true;}
-            if((e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)&&dragging){
-                dragging=false; animate(drag>=330?500:0,drag>=330); return true;
-            }
-            return true;
-        }
-
-        void animate(float to,boolean ok){
-            if(anim!=null)anim.cancel();
-            anim=ValueAnimator.ofFloat(drag,to); anim.setDuration(220);
-            anim.addUpdateListener(a->{drag=(float)a.getAnimatedValue();invalidate();}); anim.start();
-            if(ok){opened=true;Toast.makeText(getContext(),"Демо: команда открытия двери",Toast.LENGTH_SHORT).show();
-                h.postDelayed(()->{opened=false;animate(0,false);},1300);}
-        }
-
-        void txt(Canvas c,String z,float x,float y,float sz,int col,boolean bold){
-            p.setShader(null);p.setColor(col);p.setTextSize(sz);
-            p.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));c.drawText(z,x,y,p);
-        }
-        void center(Canvas c,String z,float x,float y,float sz,int col,boolean bold){
-            p.setTextSize(sz);p.setTypeface(Typeface.create("sans",bold?Typeface.BOLD:Typeface.NORMAL));
-            txt(c,z,x-p.measureText(z)/2,y,sz,col,bold);
-        }
-        void card(Canvas c,float l,float t,float r,float b,float rad,int fill,int border){rfill(c,l,t,r,b,rad,fill);rstroke(c,l,t,r,b,rad,border,1.2f);}
-        void rfill(Canvas c,float l,float t,float r,float b,float rad,int col){p.setShader(null);p.setColor(col);p.setStyle(Paint.Style.FILL);c.drawRoundRect(new RectF(l,t,r,b),rad,rad,p);}
-        void rstroke(Canvas c,float l,float t,float r,float b,float rad,int col,float w){s.setColor(col);s.setStrokeWidth(w);c.drawRoundRect(new RectF(l,t,r,b),rad,rad,s);}
-        void circle(Canvas c,float x,float y,float r,int col){p.setShader(null);p.setColor(col);c.drawCircle(x,y,r,p);}
-        void line(Canvas c,float x1,float y1,float x2,float y2,int col,float w){s.setColor(col);s.setStrokeWidth(w);c.drawLine(x1,y1,x2,y2,s);}
-        void chevronDown(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawLine(x-8,y-3,x,y+5,s);c.drawLine(x,y+5,x+8,y-3,s);}
-        void right(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawLine(x-4,y-8,x+4,y,s);c.drawLine(x+4,y,x-4,y+8,s);}
-        void arrow(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(4);c.drawLine(x-9,y-13,x+4,y,s);c.drawLine(x+4,y,x-9,y+13,s);}
-        void bell(Canvas c,float x,float y){s.setColor(Color.WHITE);s.setStrokeWidth(2.5f);c.drawArc(new RectF(x-11,y-15,x+11,y+10),190,160,false,s);line(c,x-11,y+4,x-11,y+11,Color.WHITE,2.5f);line(c,x+11,y+4,x+11,y+11,Color.WHITE,2.5f);line(c,x-11,y+11,x+11,y+11,Color.WHITE,2.5f);circle(c,x,y+16,2.5f,Color.WHITE);}
-        void door(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);c.drawRect(x-21,y-34,x+20,y+34,s);circle(c,x+9,y,3,col);line(c,x-30,y+35,x+29,y+35,col,3);}
-        void smallDoor(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawRect(x-10,y-18,x+10,y+16,s);circle(c,x+5,y,1.8f,col);}
-        void shield(Canvas c,float x,float y){Path q=new Path();q.moveTo(x,y-35);q.lineTo(x+27,y-22);q.lineTo(x+22,y+22);q.lineTo(x,y+37);q.lineTo(x-22,y+22);q.lineTo(x-27,y-22);q.close();p.setColor(Color.rgb(9,55,41));c.drawPath(q,p);s.setColor(GREEN);s.setStrokeWidth(2);c.drawPath(q,s);line(c,x-10,y,x-2,y+8,GREEN,3);line(c,x-2,y+8,x+13,y-10,GREEN,3);}
-        void building(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2);c.drawRect(x-12,y-22,x+12,y+18,s);for(int a=0;a<2;a++)for(int b=0;b<2;b++)c.drawRect(x-7+b*10,y-15+a*12,x-2+b*10,y-10+a*12,s);c.drawRect(x-3,y+8,x+3,y+18,s);}
-        void home(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(3);Path q=new Path();q.moveTo(x-18,y);q.lineTo(x,y-17);q.lineTo(x+18,y);q.lineTo(x+18,y+19);q.lineTo(x-18,y+19);q.close();c.drawPath(q,s);c.drawRect(x-4,y+7,x+4,y+19,s);}
-        void clock(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawCircle(x,y,18,s);line(c,x,y,x,y-10,col,2.5f);line(c,x,y,x+8,y+5,col,2.5f);}
-        void clipboard(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawRoundRect(new RectF(x-15,y-19,x+15,y+20),3,3,s);c.drawRect(x-7,y-24,x+7,y-17,s);line(c,x-8,y-6,x+8,y-6,col,2.5f);line(c,x-8,y+3,x+8,y+3,col,2.5f);}
-        void person(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.5f);c.drawCircle(x,y-9,8,s);c.drawArc(new RectF(x-14,y+2,x+14,y+24),180,180,false,s);}
-        void gear(Canvas c,float x,float y,int col){s.setColor(col);s.setStrokeWidth(2.3f);c.drawCircle(x,y,12,s);c.drawCircle(x,y,4,s);for(int i=0;i<8;i++){double a=Math.PI*2*i/8;line(c,x+(float)Math.cos(a)*15,y+(float)Math.sin(a)*15,x+(float)Math.cos(a)*20,y+(float)Math.sin(a)*20,col,2.3f);}}
+    static class SwipeView extends View{
+        interface CB{void run();} CB cb;Paint p=new Paint(3),s=new Paint(3);float d,drag,off;boolean moving,open;ValueAnimator a;Handler h=new Handler(Looper.getMainLooper());SwipeView(Context c){super(c);d=getResources().getDisplayMetrics().density;s.setStyle(Paint.Style.STROKE);s.setStrokeCap(Paint.Cap.ROUND);setClickable(true);}
+        @Override protected void onDraw(Canvas c){float w=getWidth(),hh=getHeight(),cy=hh/2,start=54*d,end=w-54*d,max=Math.max(0,end-start),x=start+drag,rr=hh/2-13*d;p.setColor(SUR);c.drawRoundRect(new RectF(d,d,w-d,hh-d),24*d,24*d,p);s.setColor(Color.rgb(31,88,143));s.setStrokeWidth(d);c.drawRoundRect(new RectF(d,d,w-d,hh-d),24*d,24*d,s);s.setColor(Color.rgb(25,91,160));c.drawRoundRect(new RectF(18*d,14*d,w-18*d,hh-14*d),hh/2,hh/2,s);p.setColor(Color.rgb(11,49,90));c.drawCircle(x,cy,rr,p);s.setColor(Color.rgb(79,160,255));s.setStrokeWidth(2*d);c.drawCircle(x,cy,rr,s);door(c,x,cy,rr*.72f);float tx=Math.max(150*d,start+78*d);if(!open){chev(c,tx-38*d,cy);text(c,"Свайп, чтобы открыть дверь",tx+4*d,cy-4*d,16,TEXT,true);text(c,"Потяните вправо",tx+4*d,cy+20*d,13,MUT,false);}else{text(c,"Дверь открыта",tx,cy-4*d,16,GREEN,true);text(c,"Команда выполнена",tx,cy+20*d,13,MUT,false);}if(drag>max)drag=max;}
+        void door(Canvas c,float x,float y,float z){s.setColor(Color.WHITE);s.setStrokeWidth(2*d);c.drawRect(x-z*.34f,y-z*.5f,x+z*.30f,y+z*.5f,s);p.setColor(Color.WHITE);c.drawCircle(x+z*.17f,y,2*d,p);c.drawLine(x-z*.48f,y+z*.52f,x+z*.45f,y+z*.52f,s);}void chev(Canvas c,float x,float y){s.setStrokeWidth(2.4f*d);for(int i=0;i<3;i++){float xx=x+i*12*d;s.setColor(alpha(BLUE,110+i*55));c.drawLine(xx-5*d,y-9*d,xx+3*d,y,s);c.drawLine(xx+3*d,y,xx-5*d,y+9*d,s);}}void text(Canvas c,String z,float x,float y,float sp,int col,boolean b){p.setColor(col);p.setTextSize(TypedValue.applyDimension(2,sp,getResources().getDisplayMetrics()));p.setTypeface(android.graphics.Typeface.create("sans",b?1:0));c.drawText(z,x,y,p);}
+        @Override public boolean onTouchEvent(MotionEvent e){float cy=getHeight()/2,start=54*d,end=getWidth()-54*d,max=Math.max(0,end-start),x=start+drag,r=getHeight()/2-8*d;if(e.getAction()==0){float dx=e.getX()-x,dy=e.getY()-cy;if(dx*dx+dy*dy<=r*r){moving=true;off=e.getX()-x;if(a!=null)a.cancel();return true;}return true;}if(e.getAction()==2&&moving){drag=Math.max(0,Math.min(max,e.getX()-off-start));invalidate();return true;}if((e.getAction()==1||e.getAction()==3)&&moving){moving=false;boolean ok=max>0&&drag>=max*.7f;anim(ok?max:0,ok);return true;}return true;}
+        void anim(float to,boolean ok){if(a!=null)a.cancel();a=ValueAnimator.ofFloat(drag,to);a.setDuration(ok?150:220);a.addUpdateListener(v->{drag=(float)v.getAnimatedValue();invalidate();});a.start();if(ok){open=true;performHapticFeedback(HapticFeedbackConstants.CONFIRM);if(cb!=null)cb.run();h.postDelayed(()->{open=false;anim(0,false);},1000);}}
     }
 }
