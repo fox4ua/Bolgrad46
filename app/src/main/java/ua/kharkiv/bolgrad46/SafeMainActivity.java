@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
  */
 public class SafeMainActivity extends MainActivity {
     private static final int BG = Color.rgb(4, 16, 31);
+    private static final int TEXT = Color.rgb(247, 249, 253);
 
     private View appRoot;
 
@@ -106,11 +107,11 @@ public class SafeMainActivity extends MainActivity {
             while (index < group.getChildCount()) {
                 View child = group.getChildAt(index);
 
-                if (isLegacySwipeControl(child)) {
+                if (isLegacySwipeControl(child) || child instanceof AdaptiveSwipeControl) {
                     ViewGroup.LayoutParams layoutParams = child.getLayoutParams();
                     group.removeViewAt(index);
 
-                    AdaptiveSwipeControl replacement = new AdaptiveSwipeControl(this);
+                    HoldToOpenControl replacement = new HoldToOpenControl(this);
                     group.addView(replacement, index, layoutParams);
                     child = replacement;
                 }
@@ -129,14 +130,17 @@ public class SafeMainActivity extends MainActivity {
         CharSequence value = textView.getText();
 
         if (value != null && "Мой дом".contentEquals(value)) {
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 27f);
-            textView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-            textView.setLetterSpacing(-0.015f);
-            textView.setIncludeFontPadding(false);
+            View parent = (View) textView.getParent();
+            if (parent != null) {
+                parent.setVisibility(View.GONE);
+            } else {
+                textView.setVisibility(View.GONE);
+            }
         } else if (value != null && "Болградская, 46".contentEquals(value)) {
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15f);
-            textView.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
-            textView.setLetterSpacing(0f);
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20f);
+            textView.setTextColor(TEXT);
+            textView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            textView.setLetterSpacing(-0.01f);
             textView.setIncludeFontPadding(false);
         }
     }
