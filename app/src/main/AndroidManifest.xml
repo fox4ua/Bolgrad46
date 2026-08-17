@@ -8,7 +8,7 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
         <activity
-            android:name=".ReferenceActivity"
+            android:name=".StableReferenceActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
