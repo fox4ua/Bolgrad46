@@ -13,8 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify project archive
-        run: echo "a63812f7d88f3e0b956de74b1d6ad8e06810fe9b577614893fa30e4e7e702dc2  Bolgrad46Compose-ready.zip" | sha256sum -c -
+      - name: Rebuild project archive
+        run: |
+          cat chunks/chunk0.b64 chunks/chunk1.b64 chunks/chunk2.b64 chunks/chunk3.b64 chunks/chunk4.b64 > project.b64
+          base64 --decode project.b64 > Bolgrad46Compose-ready.zip
+          echo "a63812f7d88f3e0b956de74b1d6ad8e06810fe9b577614893fa30e4e7e702dc2  Bolgrad46Compose-ready.zip" | sha256sum -c -
 
       - name: Extract project
         run: |
