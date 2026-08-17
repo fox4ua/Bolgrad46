@@ -8,7 +8,7 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
         <activity
-            android:name=".PixelPerfectActivity"
+            android:name=".TargetActivity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
