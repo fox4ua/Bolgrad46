@@ -25,6 +25,11 @@ jobs:
           mkdir -p extracted
           unzip -q Bolgrad46Compose-ready.zip -d extracted
 
+      - name: Update compile SDK to API 36
+        run: |
+          sed -i 's/compileSdk = 35/compileSdk = 36/' extracted/Bolgrad46Compose/app/build.gradle.kts
+          grep -n "compileSdk" extracted/Bolgrad46Compose/app/build.gradle.kts
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -34,8 +39,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
 
       - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
