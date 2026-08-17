@@ -35,14 +35,19 @@ jobs:
           python3 - <<'PY'
           import base64
           import pathlib
-          import re
           import shutil
           import tarfile
           import tempfile
 
           workflow = pathlib.Path('.github/workflows/compose-validate.yml').read_text()
-          match = re.search(r"echo '([^']+)' \\| base64 --decode \\| tar -xz --strip-components=1", workflow)
-          if match is None:
+          encoded = None
+          for line in workflow.splitlines():
+              marker = "echo '"
+              suffix = "' | base64 --decode | tar -xz --strip-components=1"
+              if marker in line and suffix in line:
+                  encoded = line.split(marker, 1)[1].split(suffix, 1)[0]
+                  break
+          if encoded is None:
               raise SystemExit('Embedded project archive not found')
 
           target = pathlib.Path('validation')
@@ -50,7 +55,7 @@ jobs:
               shutil.rmtree(target)
           target.mkdir(parents=True)
 
-          raw = base64.b64decode(match.group(1))
+          raw = base64.b64decode(encoded)
           with tempfile.NamedTemporaryFile(suffix='.tar.gz') as archive:
               archive.write(raw)
               archive.flush()
@@ -59,9 +64,9 @@ jobs:
 
           source = target / 'app/src/main/java/ua/bolgrad/smarthome/ui/SmartHomeScreen.kt'
           text = source.read_text()
-          marker = '@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)'
-          if not text.startswith(marker):
-              source.write_text(marker + '\n\n' + text)
+          opt_in = '@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)'
+          if not text.startswith(opt_in):
+              source.write_text(opt_in + '\n\n' + text)
           PY
 
           mkdir -p validation/app/src/main/res/drawable-nodpi
