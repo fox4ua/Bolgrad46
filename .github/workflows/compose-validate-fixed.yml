@@ -62,22 +62,23 @@ jobs:
               with tarfile.open(archive.name, 'r:gz') as tar:
                   tar.extractall(target)
 
-          source = target / 'app/src/main/java/ua/bolgrad/smarthome/ui/SmartHomeScreen.kt'
+          project = target / 'Bolgrad46Compose'
+          source = project / 'app/src/main/java/ua/bolgrad/smarthome/ui/SmartHomeScreen.kt'
           text = source.read_text()
           opt_in = '@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)'
           if not text.startswith(opt_in):
               source.write_text(opt_in + '\n\n' + text)
           PY
 
-          mkdir -p validation/app/src/main/res/drawable-nodpi
-          echo 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFElEQVR4nGMU0XBjwAaYsIoOWgkAa2IAkt1UtOQAAAAASUVORK5CYII=' | base64 --decode > validation/app/src/main/res/drawable-nodpi/house_camera.png
+          mkdir -p validation/Bolgrad46Compose/app/src/main/res/drawable-nodpi
+          echo 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFElEQVR4nGMU0XBjwAaYsIoOWgkAa2IAkt1UtOQAAAAASUVORK5CYII=' | base64 --decode > validation/Bolgrad46Compose/app/src/main/res/drawable-nodpi/house_camera.png
 
       - name: Generate official Gradle wrapper
-        working-directory: validation
+        working-directory: validation/Bolgrad46Compose
         run: gradle wrapper --gradle-version 8.9
 
       - name: Build debug APK
-        working-directory: validation
+        working-directory: validation/Bolgrad46Compose
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload validated project
@@ -85,6 +86,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Bolgrad46Compose-validated
-          path: validation/
+          path: validation/Bolgrad46Compose/
           if-no-files-found: error
           retention-days: 7
