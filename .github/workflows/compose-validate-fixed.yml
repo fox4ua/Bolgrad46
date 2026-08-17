@@ -29,7 +29,7 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Recreate corrected project
+      - name: Recreate final source project
         shell: bash
         run: |
           python3 - <<'PY'
@@ -67,7 +67,11 @@ jobs:
           text = source.read_text()
           opt_in = '@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)'
           if not text.startswith(opt_in):
-              source.write_text(opt_in + '\n\n' + text)
+              text = opt_in + '\n\n' + text
+
+          duplicate_badge = '''        OnlineBadge(\n            modifier = Modifier\n                .align(Alignment.TopStart)\n                .padding(\n                    start = (22f * scale).dp,\n                    top = (22f * scale).dp\n                ),\n            scale = scale\n        )\n\n'''
+          text = text.replace(duplicate_badge, '', 1)
+          source.write_text(text)
           PY
 
           mkdir -p validation/Bolgrad46Compose/app/src/main/res/drawable-nodpi
@@ -85,7 +89,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Bolgrad46Compose-validated
+          name: Bolgrad46Compose-final-validated
           path: validation/Bolgrad46Compose/
           if-no-files-found: error
           retention-days: 7
