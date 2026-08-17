@@ -1,0 +1,85 @@
+name: Validate fixed Compose rebuild
+
+on:
+  push:
+    branches: [ "compose-reference-rebuild" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recreate corrected project
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import pathlib
+          import re
+          import shutil
+          import tarfile
+          import tempfile
+
+          workflow = pathlib.Path('.github/workflows/compose-validate.yml').read_text()
+          match = re.search(r"echo '([^']+)' \\| base64 --decode \\| tar -xz --strip-components=1", workflow)
+          if match is None:
+              raise SystemExit('Embedded project archive not found')
+
+          target = pathlib.Path('validation')
+          if target.exists():
+              shutil.rmtree(target)
+          target.mkdir(parents=True)
+
+          raw = base64.b64decode(match.group(1))
+          with tempfile.NamedTemporaryFile(suffix='.tar.gz') as archive:
+              archive.write(raw)
+              archive.flush()
+              with tarfile.open(archive.name, 'r:gz') as tar:
+                  tar.extractall(target)
+
+          source = target / 'app/src/main/java/ua/bolgrad/smarthome/ui/SmartHomeScreen.kt'
+          text = source.read_text()
+          marker = '@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)'
+          if not text.startswith(marker):
+              source.write_text(marker + '\n\n' + text)
+          PY
+
+          mkdir -p validation/app/src/main/res/drawable-nodpi
+          echo 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFElEQVR4nGMU0XBjwAaYsIoOWgkAa2IAkt1UtOQAAAAASUVORK5CYII=' | base64 --decode > validation/app/src/main/res/drawable-nodpi/house_camera.png
+
+      - name: Generate official Gradle wrapper
+        working-directory: validation
+        run: gradle wrapper --gradle-version 8.9
+
+      - name: Build debug APK
+        working-directory: validation
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Upload validated project
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bolgrad46Compose-validated
+          path: validation/
+          if-no-files-found: error
+          retention-days: 7
